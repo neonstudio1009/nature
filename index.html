@@ -9,8 +9,12 @@
 body.dark{--bg:#0f1420;--card:#192032;--text:#e8ecf5;--sub:#9aa5bd;--line:#2a3350}
 *{box-sizing:border-box}
 body{margin:0;font-family:"Noto Sans TC",system-ui,sans-serif;background:var(--bg);color:var(--text)}
-header{background:var(--main);color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+header{background:var(--main);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
 header h1{font-size:18px;margin:0}
+#lvl{text-align:right;font-size:14px;min-width:150px}
+#lvl small{display:block;opacity:.9;font-size:12px}
+.hbar{height:6px;background:rgba(255,255,255,.35);border-radius:4px;overflow:hidden;margin:3px 0}
+.hbar i{display:block;height:100%;background:#fff}
 nav{display:flex;gap:6px;padding:10px;overflow-x:auto;position:sticky;top:0;background:var(--bg);z-index:5}
 nav button{flex:1;min-width:64px;padding:10px;border:0;border-radius:10px;background:var(--card);color:var(--text);font-size:14px;cursor:pointer}
 nav button.on{background:var(--main);color:#fff}
@@ -18,12 +22,14 @@ main{max-width:760px;margin:0 auto;padding:10px 12px 60px}
 .card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
 .card h2,.card h3{margin:0 0 10px}
 .row{display:flex;gap:10px;flex-wrap:wrap}
-.stat{flex:1;min-width:90px;text-align:center}
-.stat b{display:block;font-size:26px}
+.stat{flex:1;min-width:80px;text-align:center}
+.stat b{display:block;font-size:24px}
 .stat span{color:var(--sub);font-size:13px}
 .btn{background:var(--main);color:#fff;border:0;border-radius:10px;padding:11px 16px;font-size:15px;cursor:pointer;margin:3px 3px 3px 0}
 .btn.gray{background:var(--line);color:var(--text)}
 .btn.red{background:var(--bad)}
+.btn.gold{background:#f59e0b;color:#fff}
+.btn:disabled{opacity:.5}
 .bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--main)}
 .bar.g i{background:var(--ok)}
@@ -38,24 +44,80 @@ textarea,input,select{width:100%;padding:10px;border-radius:8px;border:1px solid
 textarea{height:140px;font-family:monospace}
 .sub{color:var(--sub);font-size:13px}
 .big{font-size:18px;line-height:1.6;margin:8px 0}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.gc{border:2px solid var(--rc);border-radius:12px;padding:16px 4px 8px;text-align:center;background:var(--card);position:relative;cursor:pointer}
+.gc.SR{box-shadow:0 0 10px var(--rc)}
+.gc.SSR{animation:glow 1.2s infinite alternate}
+.gc.lock{filter:grayscale(1);opacity:.4}
+.gr{position:absolute;top:4px;left:7px;font-size:11px;font-weight:700;color:var(--rc)}
+.gx{position:absolute;top:4px;right:7px;font-size:11px;color:var(--sub)}
+.ge{font-size:38px;line-height:1.2}
+.gn{font-size:13px}
+.pop{animation:pop .45s both}
+@keyframes pop{from{transform:scale(.2) rotate(-12deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes glow{from{box-shadow:0 0 8px var(--rc)}to{box-shadow:0 0 26px var(--rc)}}
+#toasts{position:fixed;top:70px;left:50%;transform:translateX(-50%);width:min(92vw,440px);z-index:50;pointer-events:none}
+.toast{background:#111827;color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:6px;font-size:14px;line-height:1.5;animation:tin .3s both}
+@keyframes tin{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+.theme{display:inline-block;padding:8px 12px;border-radius:20px;margin:3px;color:#fff;font-size:13px;cursor:pointer;border:3px solid transparent}
+.theme.on{border-color:var(--text)}
+.theme.lock{opacity:.4}
 </style>
 </head>
 <body>
-<header><h1>🔬 學測自然刷題站</h1><span id="lvl"></span></header>
+<header><h1>🔬 學測自然刷題站</h1><div id="lvl"></div></header>
 <nav id="nav"></nav>
 <main id="main"></main>
+<div id="toasts"></div>
 
 <script src="questions.js"></script>
 <script>
 const TOPICS={
- "物理":["運動學","牛頓運動定律","功與能量","波動與聲音","光學","電與磁","近代物理"],
+ "物理":["運動學","牛頓運動定律","功與能量","波動與聲音","光學","電與磁","熱學","近代物理"],
  "化學":["原子結構與週期表","化學鍵","莫耳與化學計量","氣體","溶液與酸鹼","氧化還原與電化學","反應速率與平衡","有機化合物"],
  "生物":["細胞與生物分子","細胞代謝","遺傳","演化","生物多樣性","動植物生理","生態"],
  "地科":["太陽系與天文","固體地球與板塊","大氣與天氣","海洋","天然災害與永續"]
 };
 const KEY="sciApp_v1";
-const TITLES=["新手","實習生","探究者","實驗員","研究員","科學家","諾貝爾候選"];
-let S=Object.assign({stats:{},box:{},xp:0,streak:0,lastDay:"",todayDate:"",todayCount:0,flags:[],custom:[],examDate:"2027-01-15",dark:false},JSON.parse(localStorage.getItem(KEY)||"{}"));
+const TITLES=["實驗新手","好奇寶寶","實驗助理","探究者","實驗員","研究員","資深研究員","博士","教授","諾貝爾得主"];
+const THEMES=[
+ {n:"經典藍",c:"#4f6df5",lv:1},{n:"森林綠",c:"#16a34a",lv:3},{n:"星空紫",c:"#7c3aed",lv:5},
+ {n:"夕陽橘",c:"#ea580c",lv:8},{n:"櫻花粉",c:"#db2777",lv:12},{n:"黃金",c:"#ca8a04",lv:16}
+];
+const RCOL={N:"#94a3b8",R:"#3b82f6",SR:"#a855f7",SSR:"#f59e0b"};
+const REFUND={N:3,R:10,SR:30,SSR:100};
+const CARDS=[
+ ["n1","🧪","燒杯","N","燒杯上的刻度只是粗略估計,要精準量取體積,應該用量筒或滴定管。"],
+ ["n2","🔬","顯微鏡","N","虎克用顯微鏡觀察軟木薄片,看到許多小室,並命名為 cell(細胞)。"],
+ ["n3","🧲","磁鐵","N","磁鐵不論切得多小,都同時有 N 極和 S 極。"],
+ ["n4","🌡️","溫度計","N","克氏溫度(絕對溫度)約等於攝氏溫度加 273。"],
+ ["n5","🔋","電池","N","伏打在 1800 年左右發明伏打電堆,是最早的化學電池。"],
+ ["n6","🌱","豌豆苗","N","孟德爾用豌豆做雜交實驗,整理出分離律與獨立分配律。"],
+ ["n7","🪨","岩石","N","岩石依成因分為火成岩、沉積岩、變質岩三大類。"],
+ ["n8","☁️","雲","N","空氣上升冷卻到露點以下,水氣凝結才會形成雲。"],
+ ["r1","⚛️","原子","R","原子由質子、中子與電子組成,幾乎所有質量集中在原子核。"],
+ ["r2","🧬","DNA","R","DNA 的鹼基配對:A 對 T,G 對 C。"],
+ ["r3","🌋","火山","R","環太平洋地震帶與火山帶合稱「火環」,臺灣就在其中。"],
+ ["r4","🌊","溫鹽環流","R","在海洋的各種運動中,溫鹽環流的週期最長,可達數百到上千年。"],
+ ["r5","💡","白熾燈泡","R","白熾燈泡靠加熱燈絲發光,大部分電能都變成熱能。"],
+ ["r6","🧫","培養皿","R","培養皿以發明者 Petri 命名,常用來培養細菌。"],
+ ["r7","🔭","望遠鏡","R","伽利略用望遠鏡觀察到木星的四顆大衛星。"],
+ ["r8","🧊","乾冰","R","乾冰是固態二氧化碳,在常壓下會直接昇華成氣體。"],
+ ["s1","🍎","牛頓","SR","牛頓提出三大運動定律與萬有引力定律。"],
+ ["s2","🌍","地球","SR","地球自轉軸傾斜約 23.5 度,是四季形成的主因。"],
+ ["s3","👩‍🔬","居禮夫人","SR","居禮夫人是第一位獲得兩個不同領域諾貝爾獎(物理、化學)的人。"],
+ ["s4","🦖","恐龍","SR","現代科學認為鳥類是恐龍的後代。"],
+ ["s5","🪐","土星","SR","土星的環主要由冰塊與岩石碎片組成。"],
+ ["ss1","🌈","愛因斯坦","SSR","愛因斯坦因為解釋光電效應而獲得諾貝爾物理學獎。"],
+ ["ss2","📜","門得列夫","SSR","門得列夫排出週期表,並預測了當時尚未發現的元素。"],
+ ["ss3","🕳️","黑洞","SSR","黑洞的重力強到連光都無法逃出。"],
+ ["ss4","🏆","學測滿級分","SSR","你正在變強!每天持續複習,就是最好的公式。"]
+];
+const rarOf=c=>c[3];
+
+let S=Object.assign({stats:{},box:{},xp:0,streak:0,lastDay:"",todayDate:"",todayCount:0,flags:[],custom:[],examDate:"2027-01-15",dark:false,
+ coins:0,cards:{},pulls:0,pity:0,pity2:0,theme:0,rewardDay:""},JSON.parse(localStorage.getItem(KEY)||"{}"));
 const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -63,6 +125,20 @@ const pad=n=>String(n).padStart(2,"0");
 const fmt=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
 const dayStr=(n=0)=>{const d=new Date();d.setDate(d.getDate()+n);return fmt(d)};
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+
+function toast(m,ms=3500){
+ const d=document.createElement("div");d.className="toast";d.textContent=m;
+ $("toasts").appendChild(d);setTimeout(()=>d.remove(),ms);
+}
+
+/* ---------- 等級 ---------- */
+const need=L=>50*L*(L-1);
+function lvlOf(xp){let L=1;while(xp>=need(L+1))L++;return L}
+function titleOf(L){return TITLES[Math.min(TITLES.length-1,L-1)]}
+function lvlProgress(){
+ const L=lvlOf(S.xp),a=need(L),b=need(L+1);
+ return {L,cur:S.xp-a,span:b-a,left:b-S.xp,pct:(S.xp-a)/(b-a)*100};
+}
 
 function allQ(){
  const m={};
@@ -75,8 +151,6 @@ function allUnits(){
  allQ().forEach(q=>{if(!u[q.subject])u[q.subject]=[];if(!u[q.subject].includes(q.unit))u[q.subject].push(q.unit)});
  return u;
 }
-function level(){return Math.floor(S.xp/100)+1}
-function titleOf(){return TITLES[Math.min(TITLES.length-1,Math.floor((level()-1)/3))]}
 function dueList(){
  const t=dayStr(),m={};allQ().forEach(q=>m[q.id]=q);
  return Object.keys(S.box).filter(id=>m[id]&&S.box[id].due<=t).map(id=>m[id]);
@@ -86,19 +160,22 @@ function pick(list,n){
   .sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>x[0]);
 }
 
-/* ---------- 記錄 ---------- */
+/* ---------- 記錄(XP / 金幣 / 連擊 / 升級) ---------- */
+let combo=0;
 function record(q,ok){
  const st=S.stats[q.id]||(S.stats[q.id]={n:0,c:0});
  st.n++;if(ok)st.c++;
+ let xp,coin;
  if(ok){
-  S.xp+=10;
+  combo++;xp=10;coin=5;
+  if(combo>=3){const b=Math.min(combo-2,5);xp+=b*2;coin+=b}
   if(S.box[q.id]){
    const b=S.box[q.id];b.stage++;
    const gap=[1,3,7,14];
    if(b.stage>=gap.length)delete S.box[q.id];else b.due=dayStr(gap[b.stage]);
   }
  }else{
-  S.xp+=2;
+  combo=0;xp=2;coin=1;
   S.box[q.id]={stage:0,due:dayStr(1)};
  }
  const t=dayStr();
@@ -107,15 +184,30 @@ function record(q,ok){
  if(S.todayCount===10&&S.lastDay!==t){
   S.streak=(S.lastDay===dayStr(-1))?S.streak+1:1;
   S.lastDay=t;
+  const bonus=30+Math.min(S.streak,10)*5;
+  coin+=bonus;
+  toast("🔥 今日 10 題達成!連續 "+S.streak+" 天,獎勵 +"+bonus+" 🪙");
+ }
+ const before=lvlOf(S.xp);
+ S.xp+=xp;S.coins+=coin;
+ const after=lvlOf(S.xp);
+ if(after>before){
+  const r=(after-before)*30;S.coins+=r;
+  let m="🎉 升級!Lv."+after+" "+titleOf(after)+",獎勵 +"+r+" 🪙";
+  const un=THEMES.filter(t=>t.lv>before&&t.lv<=after).map(t=>t.n);
+  if(un.length)m+="\n🎨 解鎖主題色:"+un.join("、");
+  toast(m,5000);
  }
  save();
+ return {xp,coin,combo};
 }
 
 /* ---------- 測驗 ---------- */
 let Q=null;
 function startQuiz(list,opt={}){
  if(!list.length){alert("目前沒有符合的題目,請先到「設定」匯入題目。");return}
- Q={list,i:0,right:0,wrong:[],fb:opt.fb!==false,end:opt.minutes?Date.now()+opt.minutes*60000:0,title:opt.title||"練習"};
+ combo=0;
+ Q={list,i:0,right:0,wrong:[],gx:0,gc:0,fb:opt.fb!==false,end:opt.minutes?Date.now()+opt.minutes*60000:0,title:opt.title||"練習"};
  if(Q.end)Q.timer=setInterval(tick,500);
  showQ();
 }
@@ -129,7 +221,7 @@ function showQ(){
  const q=Q.list[Q.i];
  Q.order=shuffle(q.options.map((_,i)=>i));
  Q.done=false;
- let h=`<div class="card"><div class="row" style="justify-content:space-between"><span class="sub">${esc(Q.title)}  ${Q.i+1}/${Q.list.length}</span><span id="timer" class="sub"></span></div>
+ let h=`<div class="card"><div class="row" style="justify-content:space-between"><span class="sub">${esc(Q.title)}  ${Q.i+1}/${Q.list.length}</span><span class="sub">${combo>=2?"🔥連擊 x"+combo:""}</span><span id="timer" class="sub"></span></div>
  <div class="bar" style="margin:8px 0"><i style="width:${Q.i/Q.list.length*100}%"></i></div>
  <span class="tag">${esc(q.subject)}</span><span class="tag">${esc(q.unit)}</span><span class="tag">${esc(q.difficulty||"")}</span>
  <div class="big">${esc(q.q)}</div><div id="opts">`;
@@ -142,7 +234,9 @@ function showQ(){
 function choose(oi){
  if(Q.done)return;Q.done=true;
  const q=Q.list[Q.i],ok=oi===q.answer;
- record(q,ok);
+ const r=record(q,ok);
+ Q.gx+=r.xp;Q.gc+=r.coin;
+ nav(curPage);
  if(ok)Q.right++;else Q.wrong.push({q,mine:oi});
  if(!Q.fb){next();return}
  document.querySelectorAll(".opt").forEach(b=>{
@@ -150,7 +244,7 @@ function choose(oi){
   if(o===q.answer)b.classList.add("right");
   else if(o===oi)b.classList.add("wrong");
  });
- $("fb").innerHTML=`<div class="explain">${ok?"✅ 答對了!+10 XP":"❌ 答錯了,已加入錯題本"}<br>${esc(q.explain||"")}</div>
+ $("fb").innerHTML=`<div class="explain">${ok?"✅ 答對了!":"❌ 答錯了,已加入錯題本"}  +${r.xp} XP  +${r.coin} 🪙 ${ok&&r.combo>=3?"  🔥連擊 x"+r.combo:""}<br>${esc(q.explain||"")}</div>
  <button class="btn" id="nx">${Q.i+1<Q.list.length?"下一題":"看結果"}</button>
  <button class="btn gray" id="fl">回報題目有誤</button>`;
  $("nx").onclick=next;
@@ -160,10 +254,12 @@ function next(){Q.i++;if(Q.i>=Q.list.length)finish();else showQ()}
 function finish(){
  if(!Q)return;
  if(Q.timer)clearInterval(Q.timer);
- const total=Q.list.length,ans=Q.right+Q.wrong.length;
+ const total=Q.list.length,L=lvlOf(S.xp);
  let h=`<div class="card"><h2>🎉 完成!</h2><div class="big">答對 ${Q.right} / ${total}(${Math.round(Q.right/total*100)}%)</div>
- <div class="sub">連續天數:${S.streak} 天 | XP:${S.xp} | 等級 Lv.${level()} ${titleOf()}</div>
- <button class="btn" onclick="go('home')">回首頁</button></div>`;
+ <div class="big">本次獲得:+${Q.gx} XP、+${Q.gc} 🪙</div>
+ <div class="sub">連續天數:${S.streak} 天 | XP:${S.xp} | Lv.${L} ${titleOf(L)} | 🪙 ${S.coins}</div>
+ <button class="btn" onclick="go('home')">回首頁</button>
+ <button class="btn gold" onclick="go('cards')">去抽卡 🎴</button></div>`;
  if(Q.wrong.length){
   h+=`<div class="card"><h3>錯題檢討</h3>`;
   Q.wrong.forEach(w=>{
@@ -178,16 +274,19 @@ function finish(){
  $("main").innerHTML=h;
 }
 
-/* ---------- 頁面 ---------- */
-const PAGES={home:"首頁",practice:"練習",wrong:"錯題本",stats:"分析",set:"設定"};
+/* ---------- 導覽 ---------- */
+const PAGES={home:"首頁",practice:"練習",wrong:"錯題本",cards:"卡片",stats:"分析",set:"設定"};
+let curPage="home";
 function nav(cur){
+ curPage=cur;
  $("nav").innerHTML=Object.keys(PAGES).map(k=>`<button class="${k===cur?"on":""}" onclick="go('${k}')">${PAGES[k]}</button>`).join("");
- $("lvl").textContent="Lv."+level()+" "+titleOf();
+ const p=lvlProgress();
+ $("lvl").innerHTML=`Lv.${p.L} ${titleOf(p.L)}<div class="hbar"><i style="width:${p.pct}%"></i></div><small>${S.xp} XP ・ 🪙 ${S.coins}</small>`;
 }
 function go(p){
  if(Q&&Q.timer)clearInterval(Q.timer);Q=null;
  nav(p);window.scrollTo(0,0);
- ({home,practice,wrong,stats,set}[p])();
+ ({home,practice,wrong,cards:cardsPage,stats,set}[p])();
 }
 function unitCounts(){
  const c={};
@@ -200,16 +299,23 @@ function unitCounts(){
  });
  return c;
 }
+
+/* ---------- 首頁 ---------- */
 function home(){
  const days=Math.ceil((new Date(S.examDate+"T00:00:00")-new Date())/864e5);
  const t=dayStr(),today=S.todayDate===t?S.todayCount:0;
- const due=dueList().length,uc=unitCounts(),U=allUnits();
+ const due=dueList().length,uc=unitCounts(),U=allUnits(),p=lvlProgress();
+ const nt=THEMES.find(x=>x.lv>p.L);
  let h=`<div class="card"><div class="row">
  <div class="stat"><b>${days>0?days:0}</b><span>距離學測(天)</span></div>
  <div class="stat"><b>🔥${S.streak}</b><span>連續天數</span></div>
- <div class="stat"><b>${S.xp}</b><span>XP</span></div></div>
- <div class="sub" style="margin-top:10px">今日進度:${Math.min(today,10)}/10 題(完成就能累積連續天數)</div>
- <div class="bar g"><i style="width:${Math.min(today,10)*10}%"></i></div></div>
+ <div class="stat"><b>${S.xp}</b><span>XP</span></div>
+ <div class="stat"><b>🪙${S.coins}</b><span>金幣</span></div></div>
+ <div class="sub" style="margin-top:10px">Lv.${p.L} ${titleOf(p.L)} → 還差 ${p.left} XP 升級${nt?"(Lv."+nt.lv+" 解鎖主題色「"+nt.n+"」)":""}</div>
+ <div class="bar"><i style="width:${p.pct}%"></i></div>
+ <div class="sub" style="margin-top:10px">今日進度:${Math.min(today,10)}/10 題(完成可得金幣並累積連續天數)</div>
+ <div class="bar g"><i style="width:${Math.min(today,10)*10}%"></i></div>
+ ${S.rewardDay!==t?`<button class="btn gold" onclick="dailyGift()">🎁 領每日禮物 +20🪙</button>`:""}</div>
  <div class="card"><h3>開始複習</h3>
  <button class="btn" onclick="daily()">▶ 每日 10 題</button>
  <button class="btn" onclick="reviewWrong()">📕 錯題複習(${due})</button>
@@ -223,6 +329,11 @@ function home(){
  }
  h+=`</div>`;
  $("main").innerHTML=h;
+}
+function dailyGift(){
+ S.rewardDay=dayStr();S.coins+=20;save();
+ toast("🎁 每日禮物 +20 🪙");
+ go(curPage);
 }
 function daily(){
  const all=allQ(),due=pick(dueList(),3),ids=new Set(due.map(q=>q.id));
@@ -277,6 +388,87 @@ function wrong(){
  });
  $("main").innerHTML=h;
 }
+
+/* ---------- 抽卡 ---------- */
+function rollOne(){
+ S.pulls++;S.pity++;S.pity2++;
+ let r;
+ if(S.pity2>=40)r="SSR";
+ else if(S.pity>=10)r=Math.random()<0.25?"SSR":"SR";
+ else{const x=Math.random()*100;r=x<3?"SSR":x<12?"SR":x<40?"R":"N"}
+ if(r==="SR"||r==="SSR")S.pity=0;
+ if(r==="SSR")S.pity2=0;
+ const pool=CARDS.filter(c=>c[3]===r);
+ const c=pool[Math.floor(Math.random()*pool.length)];
+ const dup=!!S.cards[c[0]];
+ S.cards[c[0]]=(S.cards[c[0]]||0)+1;
+ if(dup)S.coins+=REFUND[r];
+ return {c,dup};
+}
+function pull(n){
+ const cost=n===10?450:50;
+ if(S.coins<cost){toast("金幣不夠,先去答題賺金幣吧!");return}
+ S.coins-=cost;
+ const res=[];for(let i=0;i<n;i++)res.push(rollOne());
+ save();nav("cards");showPull(res);
+}
+function cardHtml(c,extra,cls,delay){
+ return `<div class="gc ${c[3]} ${cls||""}" style="--rc:${RCOL[c[3]]};animation-delay:${delay||0}s" onclick="fact('${c[0]}')">
+ <div class="gr">${c[3]}</div>${extra&&extra.top?`<div class="gx">${extra.top}</div>`:""}
+ <div class="ge">${c[1]}</div><div class="gn">${c[2]}</div>${extra&&extra.bottom?`<div class="sub">${extra.bottom}</div>`:""}</div>`;
+}
+function fact(id){
+ const c=CARDS.find(x=>x[0]===id);
+ if(!S.cards[id]){toast("🔒 尚未獲得這張卡片");return}
+ toast(c[1]+" "+c[2]+"("+c[3]+")\n"+c[4],6000);
+}
+function showPull(res){
+ let h=`<div class="card"><h3>✨ 抽卡結果</h3><div class="grid">`;
+ res.forEach((x,i)=>{
+  h+=cardHtml(x.c,{bottom:x.dup?`重複 +${REFUND[x.c[3]]}🪙`:`<span style="color:var(--ok)">NEW!</span>`},"pop",i*0.12);
+ });
+ h+=`</div>`;
+ const fl=res.filter(x=>res.length===1||x.c[3]==="SR"||x.c[3]==="SSR");
+ fl.forEach(x=>{h+=`<div class="explain">${x.c[1]} <b>${x.c[2]}</b>(${x.c[3]}):${x.c[4]}</div>`});
+ h+=`<br><button class="btn" onclick="go('cards')">回卡冊</button>
+ <button class="btn gold" onclick="pull(1)">再抽 1 次(50🪙)</button>
+ <button class="btn gold" onclick="pull(10)">十連抽(450🪙)</button></div>`;
+ $("main").innerHTML=h;
+}
+function setTheme(i){
+ const p=lvlProgress();
+ if(p.L<THEMES[i].lv){toast("🔒 需要 Lv."+THEMES[i].lv+" 才能解鎖");return}
+ S.theme=i;save();applyTheme();cardsPage();
+}
+function cardsPage(){
+ const own=CARDS.filter(c=>S.cards[c[0]]).length,p=lvlProgress(),t=dayStr();
+ let h=`<div class="card"><h3>🎴 科學卡片</h3>
+ <div class="sub">🪙 ${S.coins} ・ 收集 ${own}/${CARDS.length} ・ 再 ${Math.max(0,10-S.pity)} 抽內必出 SR 以上 ・ 再 ${Math.max(0,40-S.pity2)} 抽內必出 SSR</div>
+ <div class="bar" style="margin:8px 0"><i style="width:${own/CARDS.length*100}%"></i></div>
+ <button class="btn gold" onclick="pull(1)">抽 1 次(50🪙)</button>
+ <button class="btn gold" onclick="pull(10)">十連抽(450🪙)</button>
+ ${S.rewardDay!==t?`<button class="btn gray" onclick="dailyGift()">🎁 每日禮物</button>`:""}
+ <div class="sub">機率:N 60%、R 28%、SR 9%、SSR 3%。重複的卡片會退還金幣。答題就能賺金幣!</div></div>
+ <div class="card"><h3>🎨 主題色</h3>`;
+ THEMES.forEach((x,i)=>{
+  const lock=p.L<x.lv;
+  h+=`<span class="theme ${i===S.theme?"on":""} ${lock?"lock":""}" style="background:${x.c}" onclick="setTheme(${i})">${lock?"🔒 Lv."+x.lv:x.n}</span>`;
+ });
+ h+=`</div>`;
+ [["SSR","傳說"],["SR","稀有"],["R","優良"],["N","普通"]].forEach(([r,name])=>{
+  const list=CARDS.filter(c=>c[3]===r);
+  h+=`<div class="card"><h3 style="color:${RCOL[r]}">${r} ${name}(${list.filter(c=>S.cards[c[0]]).length}/${list.length})</h3><div class="grid">`;
+  list.forEach(c=>{
+   const n=S.cards[c[0]]||0;
+   if(n)h+=cardHtml(c,{top:n>1?"×"+n:""});
+   else h+=`<div class="gc lock" style="--rc:${RCOL[r]}" onclick="fact('${c[0]}')"><div class="gr">${r}</div><div class="ge">❓</div><div class="gn">???</div></div>`;
+  });
+  h+=`</div></div>`;
+ });
+ $("main").innerHTML=h;
+}
+
+/* ---------- 分析 ---------- */
 function stats(){
  const U=allUnits(),uc=unitCounts();
  let h=`<div class="card"><h3>📊 各科正確率</h3>`;
@@ -299,6 +491,8 @@ function stats(){
  h+=`</div>`;
  $("main").innerHTML=h;
 }
+
+/* ---------- 設定 ---------- */
 function set(){
  const total=allQ().length;
  $("main").innerHTML=`<div class="card"><h3>基本設定</h3>
@@ -306,7 +500,7 @@ function set(){
  <p><label><input type="checkbox" id="dk" style="width:auto" ${S.dark?"checked":""}> 深色模式</label></p>
  <button class="btn" id="sv">儲存</button></div>
  <div class="card"><h3>匯入題目(目前共 ${total} 題)</h3>
- <div class="sub">貼上 AI 產生的 JSON 陣列。每題格式:id, subject, unit, difficulty, q, options(4個), answer(0~3), explain</div>
+ <div class="sub">貼上 JSON 陣列(要有最外層的 [ ])。每題格式:id, subject, unit, difficulty, q, options, answer(從 0 開始), explain</div>
  <textarea id="imp" placeholder='[{"id":"p-001","subject":"物理","unit":"運動學","difficulty":"基礎","q":"...","options":["","","",""],"answer":0,"explain":"..."}]'></textarea>
  <button class="btn" id="im">匯入</button><button class="btn gray" id="ex">匯出進度與自訂題</button></div>
  <div class="card"><h3>回報有誤的題目(${S.flags.length})</h3>
@@ -332,9 +526,12 @@ function set(){
   const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="sci-backup.json";a.click();
  };
  $("cf").onclick=()=>{S.flags=[];save();set()};
- $("rs").onclick=()=>{if(confirm("確定要清除所有進度與匯入的題目嗎?")){localStorage.removeItem(KEY);location.reload()}};
+ $("rs").onclick=()=>{if(confirm("確定要清除所有進度、卡片與匯入的題目嗎?")){localStorage.removeItem(KEY);location.reload()}};
 }
-function applyTheme(){document.body.classList.toggle("dark",!!S.dark)}
+function applyTheme(){
+ document.body.classList.toggle("dark",!!S.dark);
+ document.documentElement.style.setProperty("--main",(THEMES[S.theme]||THEMES[0]).c);
+}
 applyTheme();go("home");
 </script>
 </body>
