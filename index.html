@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>學測自然刷題站</title>
+<style>
+:root{--bg:#f3f6fb;--card:#fff;--text:#1d2433;--sub:#667085;--main:#4f6df5;--ok:#16a34a;--bad:#dc2626;--line:#e3e8f0}
+body.dark{--bg:#0f1420;--card:#192032;--text:#e8ecf5;--sub:#9aa5bd;--line:#2a3350}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Noto Sans TC",system-ui,sans-serif;background:var(--bg);color:var(--text)}
+header{background:var(--main);color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:18px;margin:0}
+nav{display:flex;gap:6px;padding:10px;overflow-x:auto;position:sticky;top:0;background:var(--bg);z-index:5}
+nav button{flex:1;min-width:64px;padding:10px;border:0;border-radius:10px;background:var(--card);color:var(--text);font-size:14px;cursor:pointer}
+nav button.on{background:var(--main);color:#fff}
+main{max-width:760px;margin:0 auto;padding:10px 12px 60px}
+.card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.card h2,.card h3{margin:0 0 10px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.stat{flex:1;min-width:90px;text-align:center}
+.stat b{display:block;font-size:26px}
+.stat span{color:var(--sub);font-size:13px}
+.btn{background:var(--main);color:#fff;border:0;border-radius:10px;padding:11px 16px;font-size:15px;cursor:pointer;margin:3px 3px 3px 0}
+.btn.gray{background:var(--line);color:var(--text)}
+.btn.red{background:var(--bad)}
+.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--main)}
+.bar.g i{background:var(--ok)}
+.unit{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.unit .l{flex:1}
+.opt{display:block;width:100%;text-align:left;padding:13px;margin:8px 0;border:2px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font-size:16px;cursor:pointer}
+.opt.right{border-color:var(--ok);background:rgba(22,163,74,.15)}
+.opt.wrong{border-color:var(--bad);background:rgba(220,38,38,.15)}
+.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:20px;background:var(--line);color:var(--sub);margin-right:4px}
+.explain{background:rgba(79,109,245,.1);border-radius:10px;padding:12px;margin-top:10px;font-size:15px;line-height:1.6}
+textarea,input,select{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:14px}
+textarea{height:140px;font-family:monospace}
+.sub{color:var(--sub);font-size:13px}
+.big{font-size:18px;line-height:1.6;margin:8px 0}
+</style>
+</head>
+<body>
+<header><h1>🔬 學測自然刷題站</h1><span id="lvl"></span></header>
+<nav id="nav"></nav>
+<main id="main"></main>
+
+<script src="questions.js"></script>
+<script>
+const TOPICS={
+ "物理":["運動學","牛頓運動定律","功與能量","波動與聲音","光學","電與磁","近代物理"],
+ "化學":["原子結構與週期表","化學鍵","莫耳與化學計量","氣體","溶液與酸鹼","氧化還原與電化學","反應速率與平衡","有機化合物"],
+ "生物":["細胞與生物分子","細胞代謝","遺傳","演化","生物多樣性","動植物生理","生態"],
+ "地科":["太陽系與天文","固體地球與板塊","大氣與天氣","海洋","天然災害與永續"]
+};
+const KEY="sciApp_v1";
+const TITLES=["新手","實習生","探究者","實驗員","研究員","科學家","諾貝爾候選"];
+let S=Object.assign({stats:{},box:{},xp:0,streak:0,lastDay:"",todayDate:"",todayCount:0,flags:[],custom:[],examDate:"2027-01-15",dark:false},JSON.parse(localStorage.getItem(KEY)||"{}"));
+const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const fmt=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const dayStr=(n=0)=>{const d=new Date();d.setDate(d.getDate()+n);return fmt(d)};
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+
+function allQ(){
+ const m={};
+ (window.QUESTIONS||[]).concat(S.custom).forEach(q=>{m[q.id]=q});
+ return Object.values(m);
+}
+function allUnits(){
+ const u={};
+ for(const s in TOPICS)u[s]=TOPICS[s].slice();
+ allQ().forEach(q=>{if(!u[q.subject])u[q.subject]=[];if(!u[q.subject].includes(q.unit))u[q.subject].push(q.unit)});
+ return u;
+}
+function level(){return Math.floor(S.xp/100)+1}
+function titleOf(){return TITLES[Math.min(TITLES.length-1,Math.floor((level()-1)/3))]}
+function dueList(){
+ const t=dayStr(),m={};allQ().forEach(q=>m[q.id]=q);
+ return Object.keys(S.box).filter(id=>m[id]&&S.box[id].due<=t).map(id=>m[id]);
+}
+function pick(list,n){
+ return list.map(q=>{const st=S.stats[q.id];const w=st?(1-st.c/st.n)+0.2:1.2;return[q,w*Math.random()]})
+  .sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>x[0]);
+}
+
+/* ---------- 記錄 ---------- */
+function record(q,ok){
+ const st=S.stats[q.id]||(S.stats[q.id]={n:0,c:0});
+ st.n++;if(ok)st.c++;
+ if(ok){
+  S.xp+=10;
+  if(S.box[q.id]){
+   const b=S.box[q.id];b.stage++;
+   const gap=[1,3,7,14];
+   if(b.stage>=gap.length)delete S.box[q.id];else b.due=dayStr(gap[b.stage]);
+  }
+ }else{
+  S.xp+=2;
+  S.box[q.id]={stage:0,due:dayStr(1)};
+ }
+ const t=dayStr();
+ if(S.todayDate!==t){S.todayDate=t;S.todayCount=0}
+ S.todayCount++;
+ if(S.todayCount===10&&S.lastDay!==t){
+  S.streak=(S.lastDay===dayStr(-1))?S.streak+1:1;
+  S.lastDay=t;
+ }
+ save();
+}
+
+/* ---------- 測驗 ---------- */
+let Q=null;
+function startQuiz(list,opt={}){
+ if(!list.length){alert("目前沒有符合的題目,請先到「設定」匯入題目。");return}
+ Q={list,i:0,right:0,wrong:[],fb:opt.fb!==false,end:opt.minutes?Date.now()+opt.minutes*60000:0,title:opt.title||"練習"};
+ if(Q.end)Q.timer=setInterval(tick,500);
+ showQ();
+}
+function tick(){
+ const left=Math.max(0,Q.end-Date.now());
+ const el=$("timer");
+ if(el)el.textContent="⏱ "+pad(Math.floor(left/60000))+":"+pad(Math.floor(left/1000)%60);
+ if(left<=0)finish();
+}
+function showQ(){
+ const q=Q.list[Q.i];
+ Q.order=shuffle(q.options.map((_,i)=>i));
+ Q.done=false;
+ let h=`<div class="card"><div class="row" style="justify-content:space-between"><span class="sub">${esc(Q.title)}  ${Q.i+1}/${Q.list.length}</span><span id="timer" class="sub"></span></div>
+ <div class="bar" style="margin:8px 0"><i style="width:${Q.i/Q.list.length*100}%"></i></div>
+ <span class="tag">${esc(q.subject)}</span><span class="tag">${esc(q.unit)}</span><span class="tag">${esc(q.difficulty||"")}</span>
+ <div class="big">${esc(q.q)}</div><div id="opts">`;
+ Q.order.forEach((oi,k)=>{h+=`<button class="opt" data-o="${oi}">${"ABCD"[k]}. ${esc(q.options[oi])}</button>`});
+ h+=`</div><div id="fb"></div></div>`;
+ $("main").innerHTML=h;
+ document.querySelectorAll(".opt").forEach(b=>b.onclick=()=>choose(+b.dataset.o));
+ if(Q.end)tick();
+}
+function choose(oi){
+ if(Q.done)return;Q.done=true;
+ const q=Q.list[Q.i],ok=oi===q.answer;
+ record(q,ok);
+ if(ok)Q.right++;else Q.wrong.push({q,mine:oi});
+ if(!Q.fb){next();return}
+ document.querySelectorAll(".opt").forEach(b=>{
+  const o=+b.dataset.o;
+  if(o===q.answer)b.classList.add("right");
+  else if(o===oi)b.classList.add("wrong");
+ });
+ $("fb").innerHTML=`<div class="explain">${ok?"✅ 答對了!+10 XP":"❌ 答錯了,已加入錯題本"}<br>${esc(q.explain||"")}</div>
+ <button class="btn" id="nx">${Q.i+1<Q.list.length?"下一題":"看結果"}</button>
+ <button class="btn gray" id="fl">回報題目有誤</button>`;
+ $("nx").onclick=next;
+ $("fl").onclick=()=>{if(!S.flags.includes(q.id))S.flags.push(q.id);save();$("fl").textContent="已回報 ✔"};
+}
+function next(){Q.i++;if(Q.i>=Q.list.length)finish();else showQ()}
+function finish(){
+ if(!Q)return;
+ if(Q.timer)clearInterval(Q.timer);
+ const total=Q.list.length,ans=Q.right+Q.wrong.length;
+ let h=`<div class="card"><h2>🎉 完成!</h2><div class="big">答對 ${Q.right} / ${total}(${Math.round(Q.right/total*100)}%)</div>
+ <div class="sub">連續天數:${S.streak} 天 | XP:${S.xp} | 等級 Lv.${level()} ${titleOf()}</div>
+ <button class="btn" onclick="go('home')">回首頁</button></div>`;
+ if(Q.wrong.length){
+  h+=`<div class="card"><h3>錯題檢討</h3>`;
+  Q.wrong.forEach(w=>{
+   h+=`<div style="margin-bottom:14px"><span class="tag">${esc(w.q.unit)}</span><div>${esc(w.q.q)}</div>
+   <div class="sub">你選:${esc(w.q.options[w.mine])}</div>
+   <div style="color:var(--ok)">正解:${esc(w.q.options[w.q.answer])}</div>
+   <div class="explain">${esc(w.q.explain||"")}</div></div>`;
+  });
+  h+=`</div>`;
+ }
+ Q=null;
+ $("main").innerHTML=h;
+}
+
+/* ---------- 頁面 ---------- */
+const PAGES={home:"首頁",practice:"練習",wrong:"錯題本",stats:"分析",set:"設定"};
+function nav(cur){
+ $("nav").innerHTML=Object.keys(PAGES).map(k=>`<button class="${k===cur?"on":""}" onclick="go('${k}')">${PAGES[k]}</button>`).join("");
+ $("lvl").textContent="Lv."+level()+" "+titleOf();
+}
+function go(p){
+ if(Q&&Q.timer)clearInterval(Q.timer);Q=null;
+ nav(p);window.scrollTo(0,0);
+ ({home,practice,wrong,stats,set}[p])();
+}
+function unitCounts(){
+ const c={};
+ allQ().forEach(q=>{
+  const k=q.subject+"|"+q.unit;
+  c[k]=c[k]||{total:0,seen:0,n:0,c:0};
+  c[k].total++;
+  const st=S.stats[q.id];
+  if(st){c[k].seen++;c[k].n+=st.n;c[k].c+=st.c}
+ });
+ return c;
+}
+function home(){
+ const days=Math.ceil((new Date(S.examDate+"T00:00:00")-new Date())/864e5);
+ const t=dayStr(),today=S.todayDate===t?S.todayCount:0;
+ const due=dueList().length,uc=unitCounts(),U=allUnits();
+ let h=`<div class="card"><div class="row">
+ <div class="stat"><b>${days>0?days:0}</b><span>距離學測(天)</span></div>
+ <div class="stat"><b>🔥${S.streak}</b><span>連續天數</span></div>
+ <div class="stat"><b>${S.xp}</b><span>XP</span></div></div>
+ <div class="sub" style="margin-top:10px">今日進度:${Math.min(today,10)}/10 題(完成就能累積連續天數)</div>
+ <div class="bar g"><i style="width:${Math.min(today,10)*10}%"></i></div></div>
+ <div class="card"><h3>開始複習</h3>
+ <button class="btn" onclick="daily()">▶ 每日 10 題</button>
+ <button class="btn" onclick="reviewWrong()">📕 錯題複習(${due})</button>
+ <button class="btn gray" onclick="mock()">⏱ 限時模擬</button></div>
+ <div class="card"><h3>範圍覆蓋率</h3>`;
+ for(const s in U){
+  let tot=0,seen=0;
+  U[s].forEach(u=>{const x=uc[s+"|"+u];if(x){tot+=x.total;seen+=x.seen}});
+  h+=`<div style="margin:8px 0"><div class="unit" style="border:0;padding:0"><span>${s}</span><span class="sub">已練 ${seen} / ${tot} 題</span></div>
+  <div class="bar"><i style="width:${tot?seen/tot*100:0}%"></i></div></div>`;
+ }
+ h+=`</div>`;
+ $("main").innerHTML=h;
+}
+function daily(){
+ const all=allQ(),due=pick(dueList(),3),ids=new Set(due.map(q=>q.id));
+ const rest=pick(all.filter(q=>!ids.has(q.id)),10-due.length);
+ startQuiz(shuffle(due.concat(rest)),{title:"每日 10 題"});
+}
+function reviewWrong(){
+ const d=dueList();
+ if(!d.length){alert("今天沒有要複習的錯題 🎉");return}
+ startQuiz(shuffle(d),{title:"錯題複習"});
+}
+function mock(){
+ const U=allUnits();
+ $("main").innerHTML=`<div class="card"><h3>限時模擬</h3>
+ <p>科目</p><select id="ms"><option value="">全部</option>${Object.keys(U).map(s=>`<option>${s}</option>`).join("")}</select>
+ <p>題數</p><input id="mn" type="number" value="20" min="1">
+ <p>時間(分鐘)</p><input id="mt" type="number" value="25" min="1"><br><br>
+ <button class="btn" id="mg">開始</button></div>`;
+ $("mg").onclick=()=>{
+  const s=$("ms").value;let L=allQ().filter(q=>!s||q.subject===s);
+  startQuiz(shuffle(L).slice(0,+$("mn").value),{title:"限時模擬",fb:false,minutes:+$("mt").value});
+ };
+}
+function practice(){
+ const U=allUnits(),uc=unitCounts();
+ let h=`<div class="card"><button class="btn" onclick="startQuiz(shuffle(allQ()).slice(0,20),{title:'全科隨機'})">🎲 全科隨機 20 題</button></div>`;
+ for(const s in U){
+  h+=`<div class="card"><h3>${s}</h3>`;
+  U[s].forEach(u=>{
+   const x=uc[s+"|"+u]||{total:0,seen:0};
+   h+=`<div class="unit"><div class="l">${esc(u)}<div class="sub">已練 ${x.seen}/${x.total}</div>
+   <div class="bar"><i style="width:${x.total?x.seen/x.total*100:0}%"></i></div></div>
+   <button class="btn" onclick="unitQuiz('${esc(s)}','${esc(u)}')" ${x.total?"":"disabled"}>練習</button></div>`;
+  });
+  h+=`</div>`;
+ }
+ $("main").innerHTML=h;
+}
+function unitQuiz(s,u){
+ startQuiz(shuffle(allQ().filter(q=>q.subject===s&&q.unit===u)).slice(0,15),{title:u});
+}
+function wrong(){
+ const m={};allQ().forEach(q=>m[q.id]=q);
+ const ids=Object.keys(S.box).filter(i=>m[i]),t=dayStr();
+ let h=`<div class="card"><h3>📕 錯題本(${ids.length} 題)</h3>
+ <button class="btn" onclick="reviewWrong()">複習今天到期的題目(${dueList().length})</button>
+ <button class="btn gray" onclick="startQuiz(shuffle(Object.keys(S.box).map(i=>allQ().find(q=>q.id===i)).filter(Boolean)),{title:'全部錯題'})">全部重做</button></div>`;
+ ids.forEach(i=>{
+  const q=m[i],b=S.box[i];
+  h+=`<div class="card"><span class="tag">${esc(q.subject)}</span><span class="tag">${esc(q.unit)}</span>
+  <span class="tag">${b.due<=t?"今天到期":"下次 "+b.due}</span><div>${esc(q.q)}</div></div>`;
+ });
+ $("main").innerHTML=h;
+}
+function stats(){
+ const U=allUnits(),uc=unitCounts();
+ let h=`<div class="card"><h3>📊 各科正確率</h3>`;
+ const weak=[];
+ for(const s in U){
+  let n=0,c=0;
+  U[s].forEach(u=>{const x=uc[s+"|"+u];if(x){n+=x.n;c+=x.c;if(x.n>=3)weak.push({s,u,r:x.c/x.n})}});
+  const r=n?Math.round(c/n*100):0;
+  h+=`<div style="margin:8px 0"><div class="unit" style="border:0;padding:0"><span>${s}</span><span class="sub">${n?r+"%("+c+"/"+n+")":"尚無資料"}</span></div>
+  <div class="bar g"><i style="width:${r}%"></i></div></div>`;
+ }
+ h+=`</div>`;
+ weak.sort((a,b)=>a.r-b.r);
+ h+=`<div class="card"><h3>⚠️ 最弱單元</h3>`;
+ if(!weak.length)h+=`<div class="sub">每個單元至少做 3 題後會出現。</div>`;
+ weak.slice(0,5).forEach(w=>{
+  h+=`<div class="unit"><div class="l">${w.s}・${esc(w.u)}<div class="sub">正確率 ${Math.round(w.r*100)}%</div></div>
+  <button class="btn" onclick="unitQuiz('${esc(w.s)}','${esc(w.u)}')">加強</button></div>`;
+ });
+ h+=`</div>`;
+ $("main").innerHTML=h;
+}
+function set(){
+ const total=allQ().length;
+ $("main").innerHTML=`<div class="card"><h3>基本設定</h3>
+ <p>學測日期(請依大考中心公告修改)</p><input id="ed" type="date" value="${S.examDate}">
+ <p><label><input type="checkbox" id="dk" style="width:auto" ${S.dark?"checked":""}> 深色模式</label></p>
+ <button class="btn" id="sv">儲存</button></div>
+ <div class="card"><h3>匯入題目(目前共 ${total} 題)</h3>
+ <div class="sub">貼上 AI 產生的 JSON 陣列。每題格式:id, subject, unit, difficulty, q, options(4個), answer(0~3), explain</div>
+ <textarea id="imp" placeholder='[{"id":"p-001","subject":"物理","unit":"運動學","difficulty":"基礎","q":"...","options":["","","",""],"answer":0,"explain":"..."}]'></textarea>
+ <button class="btn" id="im">匯入</button><button class="btn gray" id="ex">匯出進度與自訂題</button></div>
+ <div class="card"><h3>回報有誤的題目(${S.flags.length})</h3>
+ <div class="sub">${S.flags.map(esc).join("、")||"無"}</div>
+ <button class="btn gray" id="cf">清除回報</button></div>
+ <div class="card"><h3>危險區</h3><button class="btn red" id="rs">重設所有進度</button></div>`;
+ $("sv").onclick=()=>{S.examDate=$("ed").value||S.examDate;S.dark=$("dk").checked;save();applyTheme();alert("已儲存")};
+ $("im").onclick=()=>{
+  try{
+   const a=JSON.parse($("imp").value);
+   if(!Array.isArray(a))throw "需要是陣列";
+   let ok=0;
+   a.forEach(q=>{
+    if(q.id&&q.subject&&q.unit&&q.q&&Array.isArray(q.options)&&q.options.length>=2&&Number.isInteger(q.answer)&&q.answer>=0&&q.answer<q.options.length){
+     S.custom=S.custom.filter(x=>x.id!==q.id);S.custom.push(q);ok++;
+    }
+   });
+   save();alert("成功匯入 "+ok+" / "+a.length+" 題");set();
+  }catch(e){alert("JSON 格式錯誤:"+e)}
+ };
+ $("ex").onclick=()=>{
+  const b=new Blob([JSON.stringify(S,null,1)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="sci-backup.json";a.click();
+ };
+ $("cf").onclick=()=>{S.flags=[];save();set()};
+ $("rs").onclick=()=>{if(confirm("確定要清除所有進度與匯入的題目嗎?")){localStorage.removeItem(KEY);location.reload()}};
+}
+function applyTheme(){document.body.classList.toggle("dark",!!S.dark)}
+applyTheme();go("home");
+</script>
+</body>
+</html>
