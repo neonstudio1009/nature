@@ -133,7 +133,7 @@ function showQ(){
  <div class="bar" style="margin:8px 0"><i style="width:${Q.i/Q.list.length*100}%"></i></div>
  <span class="tag">${esc(q.subject)}</span><span class="tag">${esc(q.unit)}</span><span class="tag">${esc(q.difficulty||"")}</span>
  <div class="big">${esc(q.q)}</div><div id="opts">`;
- Q.order.forEach((oi,k)=>{h+=`<button class="opt" data-o="${oi}">${"ABCD"[k]}. ${esc(q.options[oi])}</button>`});
+ Q.order.forEach((oi,k)=>{h+=`<button class="opt" data-o="${oi}">${"ABCDE"[k]}. ${esc(q.options[oi])}</button>`});
  h+=`</div><div id="fb"></div></div>`;
  $("main").innerHTML=h;
  document.querySelectorAll(".opt").forEach(b=>b.onclick=()=>choose(+b.dataset.o));
